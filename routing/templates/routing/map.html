@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fuel Route Planner</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<style>
+  body{margin:0;font-family:system-ui,sans-serif}
+  #bar{display:flex;gap:8px;padding:10px;flex-wrap:wrap;background:#f4f4f5}
+  #bar input{padding:8px;flex:1;min-width:160px} #bar button{padding:8px 16px}
+  #summary{padding:8px 12px;font-size:14px} #map{height:calc(100vh - 110px)}
+</style>
+</head>
+<body>
+<form id="bar">
+  <input id="start" value="New York, NY" placeholder="Start (USA)">
+  <input id="finish" value="Chicago, IL" placeholder="Finish (USA)">
+  <button>Plan route</button>
+</form>
+<div id="summary">Enter two US locations and press Plan route.</div>
+<div id="map"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+const map = L.map('map').setView([39.5, -98.35], 4);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: '&copy; OpenStreetMap'}).addTo(map);
+let layer = L.layerGroup().addTo(map);
+document.getElementById('bar').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const summary = document.getElementById('summary');
+  summary.textContent = 'Planning...';
+  const res = await fetch('/api/route/', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({start_location: start.value, finish_location: finish.value})
+  });
+  const data = await res.json();
+  if (!res.ok) { summary.textContent = data.message || JSON.stringify(data.errors); return; }
+  layer.clearLayers();
+  const line = L.geoJSON(data.route, {style: {color: '#2563eb', weight: 4}}).addTo(layer);
+  data.fuel_stops.forEach((s, i) => L.marker([s.latitude, s.longitude]).addTo(layer).bindPopup(
+    `<b>${i + 1}. ${s.station_name}</b><br>${s.city}, ${s.state}<br>mile ${s.distance_from_start_miles}` +
+    `<br>${s.fuel_purchased_gallons} gal @ $${s.fuel_price_per_gallon} = $${s.fuel_cost}`));
+  map.fitBounds(line.getBounds());
+  summary.textContent = `${data.distance_miles} mi, ${data.fuel_stops.length} fuel stop(s), total fuel cost $${data.total_fuel_cost}`;
+});
+</script>
+</body>
+</html>
