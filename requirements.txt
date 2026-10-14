@@ -1,0 +1,8 @@
+Django==6.1.2
+djangorestframework>=3.15
+pandas>=2.2
+numpy>=1.26
+requests>=2.31
+shapely>=2.0
+pyproj>=3.6
+geopy>=2.4
